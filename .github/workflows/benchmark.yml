@@ -3,7 +3,7 @@ name: benchmarks
 on:
   # Schedule the workflow to run once per day at 16:00 UTC
   schedule:
-    - cron: '35/20 * * * *'
+    - cron: '35/60 * * * *'
   push:
     branches:
       - main
@@ -34,6 +34,20 @@ jobs:
       - name: Build release version
         if: ${{ !cancelled() && !failure() }}
         run: sudo docker exec ${BUILDER_CONTAINER} bash -c "git config --global safe.directory \"*\" && cd /infinity && rm -fr cmake-build-release && mkdir -p cmake-build-release && cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_JOB_POOLS:STRING=link=8 -S /infinity -B /infinity/cmake-build-release && cmake --build /infinity/cmake-build-release --target infinity"
+
+      - name: Prepare benchmark datasets
+        if: ${{ !cancelled() && !failure() }}
+        run: |
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && wget ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && wget ftp://ftp.irisa.fr/local/texmex/corpus/gist.tar.gz"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && tar -zxvf sift.tar.gz"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv sift/sift_base.fvecs test/data/benchmark/sift_1m/sift_base.fvecs"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv sift/sift_query.fvecs test/data/benchmark/sift_1m/sift_query.fvecs"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv sift/sift_groundtruth.ivecs test/data/benchmark/sift_1m/sift_groundtruth.ivecs"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && tar -zxvf gist.tar.gz"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv gist/gist_base.fvecs test/data/benchmark/gist_1m/gist_base.fvecs"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv gist/gist_query.fvecs test/data/benchmark/gist_1m/gist_query.fvecs"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv gist/gist_groundtruth.ivecs test/data/benchmark/gist_1m/gist_groundtruth.ivecs"
 
       - name: Start infinity release version
         if: ${{ !cancelled() && !failure() }}
