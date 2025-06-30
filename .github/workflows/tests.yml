@@ -1,1 +1,5 @@
 name: tests
+
+on:
+  schedule:
+    - cron: '0 13 * * *'
