@@ -3,3 +3,16 @@ name: tests
 on:
   schedule:
     - cron: '0 13 * * *'
+
+jobs:
+  slow_tests:
+    name: run slow test
+    runs-on: ["ubuntu-latest" ]
+    steps:
+
+      - name: Choose test type
+        id: choose_test_type
+        run: |
+          echo "RUN_TSAN_TEST=true" >> $GITHUB_OUTPUT
+          echo "RUN_RESTART_TEST=true" >> $GITHUB_OUTPUT
+          echo "RUN_PYTEST_PARALLEL=true" >> $GITHUB_OUTPUT
