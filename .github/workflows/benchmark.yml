@@ -34,6 +34,7 @@ jobs:
       - name: Prepare benchmark datasets
         if: ${{ !cancelled() && !failure() }}
         run: |
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && sudo mkdir -p test/data/benchmark"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && wget ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && wget ftp://ftp.irisa.fr/local/texmex/corpus/gist.tar.gz"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && tar -zxvf sift.tar.gz"
