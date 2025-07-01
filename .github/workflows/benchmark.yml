@@ -31,38 +31,46 @@ jobs:
           TZ=${TZ:-$(readlink -f /etc/localtime | awk -F '/zoneinfo/' '{print $2}')}
           sudo docker rm -f -v ${BUILDER_CONTAINER} && sudo docker run --privileged --cap-add=NET_ADMIN -d --name ${BUILDER_CONTAINER} -e TZ=$TZ -e CMAKE_BUILD_PARALLEL_LEVEL=${CPUS} -v $PWD:/infinity -v /boot:/boot -v /var/run/docker.sock:/var/run/docker.sock --cpus ${CPUS} infiniflow/infinity_builder:centos7_clang18
 
+      - name: Build release version
+        if: ${{ !cancelled() && !failure() }}
+        run: | 
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "git config --global safe.directory \"*\" 
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity && rm -rf cmake-build-release"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "mkdir -p cmake-build-release "
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_JOB_POOLS:STRING=link=8 -S /infinity -B /infinity/cmake-build-release"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cmake --build /infinity/cmake-build-release --target infinity knn_import_benchmark knn_query_benchmark"
+
       - name: Prepare benchmark datasets
         if: ${{ !cancelled() && !failure() }}
         run: |
-          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && sudo mkdir -p test/data/benchmark"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && wget ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && wget ftp://ftp.irisa.fr/local/texmex/corpus/gist.tar.gz"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && tar -zxvf sift.tar.gz"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && sudo mkdir -p test/data/benchmark/sift_1m"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv sift/sift_base.fvecs test/data/benchmark/sift_1m/sift_base.fvecs"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv sift/sift_query.fvecs test/data/benchmark/sift_1m/sift_query.fvecs"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv sift/sift_groundtruth.ivecs test/data/benchmark/sift_1m/sift_groundtruth.ivecs"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && tar -zxvf gist.tar.gz"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && sudo mkdir -p test/data/benchmark/gist_1m"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv gist/gist_base.fvecs test/data/benchmark/gist_1m/gist_base.fvecs"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv gist/gist_query.fvecs test/data/benchmark/gist_1m/gist_query.fvecs"
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && mv gist/gist_groundtruth.ivecs test/data/benchmark/gist_1m/gist_groundtruth.ivecs"
 
-      - name: Start infinity release version
+      - name: Latest benchmark sift
         if: ${{ !cancelled() && !failure() }}
         run: |
-          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && rm -fr /var/infinity && cmake-build-release/src/infinity --config=conf/pytest_parallel_continuous_conf.toml > release.log 2> release_error.log" &
-
-      - name: Stop infinity release
-        if: ${{ !cancelled() && !failure() && steps.choose_test_type.outputs.RUN_PYTEST_PARALLEL == 'true' }}
-        # && !contains(github.event.pull_request.labels.*.name, 'invalid')
-        id: stop_py_tests
+            sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && rm -fr /var/infinity"
+            sudo docker exec ${BUILDER_CONTAINER} bash -c "/infinity/cmake-build-release/benchmark/local_infinity/knn_import_benchmark --dataset=sift --dataset_dir=/infinity/test/data"
+            sudo docker exec ${BUILDER_CONTAINER} bash -c "echo '1 50' | /infinity/cmake-build-release/benchmark/local_infinity/knn_query_benchmark sift 200 false /infinity/test/data | tee benchmark_sift_1_thread.log"
+            sudo docker exec ${BUILDER_CONTAINER} bash -c "echo '8 50' | /infinity/cmake-build-release/benchmark/local_infinity/knn_query_benchmark sift 200 false /infinity/test/data | tee benchmark_sift_8_thread.log"
+      
+      - name: Latest benchmark gist
+        if: ${{ !cancelled() && !failure() }}
         run: |
-          sudo chmod +x scripts/timeout_kill.sh
-          pids=$(sudo docker exec ${BUILDER_CONTAINER} pgrep -f cmake-build-release/src/infinity | xargs echo)
-          sudo docker exec ${BUILDER_CONTAINER} bash -c "/infinity/scripts/timeout_kill.sh 15 ${pids}"
-          if [ $? -ne 0 ]; then
-            echo "Failed to kill infinity release version"
-            exit 1
-          fi
+            sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity/ && rm -fr /var/infinity"
+            sudo docker exec ${BUILDER_CONTAINER} bash -c "/infinity/cmake-build-release/benchmark/local_infinity/knn_import_benchmark --dataset=gist --dataset_dir=/infinity/test/data"
+            sudo docker exec ${BUILDER_CONTAINER} bash -c "echo '1 50' | /infinity/cmake-build-release/benchmark/local_infinity/knn_query_benchmark gist 200 false /infinity/test/data | tee benchmark_gist_1_thread.log"
+            sudo docker exec ${BUILDER_CONTAINER} bash -c "echo '8 50' | /infinity/cmake-build-release/benchmark/local_infinity/knn_query_benchmark gist 200 false /infinity/test/data | tee benchmark_gist_8_thread.log"
       
       - name: Destroy builder container
         if: always()  # always run this step even if previous steps failed
@@ -70,4 +78,3 @@ jobs:
             if [ -n "${BUILDER_CONTAINER}" ]; then
               sudo docker rm -f -v ${BUILDER_CONTAINER}
             fi
-
