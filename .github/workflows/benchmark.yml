@@ -34,12 +34,11 @@ jobs:
       - name: Build release version
         if: ${{ !cancelled() && !failure() }}
         run: | 
-          sudo docker exec ${BUILDER_CONTAINER} bash -c "git config --global safe.directory \"*\" 
           sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity && rm -rf cmake-build-release"
-          sudo docker exec ${BUILDER_CONTAINER} bash -c "mkdir -p cmake-build-release "
-          sudo docker exec ${BUILDER_CONTAINER} bash -c "cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_JOB_POOLS:STRING=link=8 -S /infinity -B /infinity/cmake-build-release"
-          sudo docker exec ${BUILDER_CONTAINER} bash -c "cmake --build /infinity/cmake-build-release --target infinity knn_import_benchmark knn_query_benchmark"
-
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity && mkdir -p cmake-build-release "
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity && cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_JOB_POOLS:STRING=link=8 -S /infinity -B /infinity/cmake-build-release"
+          sudo docker exec ${BUILDER_CONTAINER} bash -c "cd /infinity && cmake --build /infinity/cmake-build-release --target infinity knn_import_benchmark knn_query_benchmark"
+          
       - name: Prepare benchmark datasets
         if: ${{ !cancelled() && !failure() }}
         run: |
