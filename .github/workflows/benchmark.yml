@@ -3,7 +3,7 @@ name: benchmarks
 on:
   # Schedule the workflow to run once per day at 16:00 UTC
   schedule:
-    - cron: '35/60 * * * *'
+    - cron: '0 0 1 * *'
   push:
     branches:
       - main
